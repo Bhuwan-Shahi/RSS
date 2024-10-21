@@ -1,7 +1,55 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
+)
 
 func main() {
+	//Loading from the .env file
+	godotenv.Load(".env")
 	fmt.Println("Hello, world")
+	// Getting port address form the .env file
+	portString := os.Getenv("PORT")
+	if portString == "" {
+		log.Fatal("Port is not found in the environment")
+	}
+	fmt.Println("Port:", portString)
+
+	//setting up a chi router
+	router := chi.NewRouter()
+
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},                   // Allow specific origin
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow specific methods
+		AllowedHeaders:   []string{"*"},                                       // Allow specific headers
+		ExposedHeaders:   []string{"Link"},                                    // Expose custom headers
+		AllowCredentials: false,                                               // Allow credentials (cookies, authorization headers, etc.)
+		MaxAge:           300,                                                 // Cache preflight response for 5 minutes
+	}))
+
+	v1Router := chi.NewRouter()
+
+	v1Router.HandleFunc("/healthz", hadleReadiness)
+
+	router.Mount("/v1", v1Router)
+
+	srv := &http.Server{
+		Handler: router,
+		Addr:    ":" + portString,
+	}
+
+	log.Printf("Server starting on port: %v", portString)
+
+	err := srv.ListenAndServe() // this will block and hadels the http request
+	if err != nil {
+		defer panic(err)
+	}
+
 }
